@@ -567,6 +567,62 @@ file. And the CMD instruction simply calls the script.
 CMD [ "/bin/rsyslog.sh" ]
 ```
 
+[[location_of_supported_files]]
+==== Location of Support Files
+
+Docker itself does not limit the developer in deciding where to put the files that are required for starting the container.
+Those files might be either starting script, configuration files, template files that are evaluated once the container is started or anything else.
+General rule is that if the file can be provided by RPM, it should be provided by RPM. That is also reason why the files that are not provided by RPM
+should be put into the same location as if they would come from RPM, because they might eventually end in the RPM.
+
+Whatever the location will be, it is good idea to use similar location to similar container images, for example when a PostgreSQL container image
+uses some schema, MariaDB should use a similar schema, because that is what users will expect.
+
+The recommended location and naming scheme is the following (MySQL taken as an example):
+
+.Location of Support Files
+[cols="2*", options"header"]
+|===
+|Location
+|Description
+
+|`/usr/bin/run-mysqld`
+|Main executables that users usually use; one of them is usually set as default CMD
+
+|`/usr/libexec/container-setup`
+|Script that is run during container build to prepare container content; with this command we can run only one command instead of having a complicated scripts directly in the Dockerfile
+
+|`/etc/my.cnf`
+|Main config file for the daemon, the location of the config file should be the same as in RPM, because it is what users expect
+
+|`/usr/share/container-scripts/mysql/my-tuning.cnf.template`
+|Template for another config file, its content may be evaluated using `envsubst` utility, so concrete values are set according to environment variables given as argument to `docker run` command
+
+|`/var/lib/mysql/data`
+|Path to the data, that is often a docker VOLUME; the `data` part is important so the volume-mounted directory does not have a root-owned parent
+
+In order to have the Dockerfile clean, it is good practice to put all the files into one directory and use
+their final location under that directory. In case of the MySQL example above, it might look like this:
+
+```
+ls root/
+/etc/my.cnf
+/usr/bin/run-mysqld
+/usr/libexec/container-setup
+/usr/share/container-scripts/mysql/my-tuning.cnf.template
+/var/lib/mysql/data
+```
+
+Adding all the files in the Dockerfile can be then as simple as this:
+
+```
+COPY root /
+```
+
+The source files may be stored on FTP or some other medium that does not keep UNIX file attributes,
+so the Dockerfile or `container-setup` script should make sure the files will have proper attributes set,
+like that files in `/usr/bin/*` are executable, etc.
+
 [[creating_using_systemd]]
 ==== Using systemd "inside the container"
 
